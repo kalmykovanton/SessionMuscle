@@ -7,7 +7,7 @@ use \FilesystemIterator;
 
 /**
  * Class FileAdapter.
- * @package Jazz\Application\SessionHandle\Adapters
+ * @package SessionMuscle\Adapters
  */
 class FileAdapter implements ISessionAdapter
 {
@@ -18,7 +18,7 @@ class FileAdapter implements ISessionAdapter
 
     public function __construct($path, $flag)
     {
-        $this->fileIterator = new FilesystemIterator($path, $flag);
+        $this->fileIterator = new FilesystemIterator($path, \FilesystemIterator::SKIP_DOTS);
     }
 
     /**
@@ -39,11 +39,11 @@ class FileAdapter implements ISessionAdapter
      * @param string $sessID
      * @return bool
      */
-    public function isExist($repository, $sessIDWithType)
+    public function isExist($repository, $fullSessID)
     {
-        $this->checkRepoNameAndSessID($repository, $sessIDWithType);
+        $this->checkRepoNameAndSessID($repository, $fullSessID);
 
-        return (file_exists($this->buidPathToFile($repository, $sessIDWithType))) ? true : false;
+        return (file_exists($this->buidPathToFile($repository, $fullSessID))) ? true : false;
     }
 
     /**
@@ -54,12 +54,12 @@ class FileAdapter implements ISessionAdapter
      * @return mixed
      * @throws InvalidArgumentException
      */
-    public function read($repository, $sessIDWithType)
+    public function read($repository, $fullSessID)
     {
-        $this->checkRepoNameAndSessID($repository, $sessIDWithType);
+        $this->checkRepoNameAndSessID($repository, $fullSessID);
 
         return unserialize(
-            file_get_contents($this->buidPathToFile($repository, $sessIDWithType))
+            file_get_contents($this->buidPathToFile($repository, $fullSessID))
         );
     }
 
@@ -71,11 +71,11 @@ class FileAdapter implements ISessionAdapter
      * @param array $sessionData
      * @return bool
      */
-    public function save($repository, $sessIDWithType, $sessionData)
+    public function save($repository, $fullSessID, $sessionData)
     {
-        $this->checkRepoNameAndSessID($repository, $sessIDWithType);
+        $this->checkRepoNameAndSessID($repository, $fullSessID);
 
-        $fullPathToFile = $this->buidPathToFile($repository, $sessIDWithType);
+        $fullPathToFile = $this->buidPathToFile($repository, $fullSessID);
 
         return (file_put_contents($fullPathToFile, serialize($sessionData))) ? true : false;
     }
@@ -87,11 +87,11 @@ class FileAdapter implements ISessionAdapter
      * @param string $sessIDWithType
      * @return bool
      */
-    public function erase($repository, $sessIDWithType)
+    public function erase($repository, $fullSessID)
     {
-        $this->checkRepoNameAndSessID($repository, $sessIDWithType);
+        $this->checkRepoNameAndSessID($repository, $fullSessID);
 
-        $fullPathToFile = $this->buidPathToFile($repository, $sessIDWithType);
+        $fullPathToFile = $this->buidPathToFile($repository, $fullSessID);
 
         return (file_exists($fullPathToFile)) ? unlink($fullPathToFile) : false;
     }
@@ -139,25 +139,21 @@ class FileAdapter implements ISessionAdapter
     }
 
     /**
+     *
+     *
      * @param $filename
      * @param $sessionTypes
      * @return string
      */
     protected function getSessionType($filename, $sessionTypes)
     {
-        $pos = 0;
         foreach ($sessionTypes as $type) {
             $pos = strrpos($filename, $type, -1);
             if ($pos !== 0) {
-                break;
+                return substr($filename, $pos);
             }
         }
-
-        if ($pos !== 0) {
-            return substr($filename, $pos);
-        }
-
-        return '';
+//        return '';
     }
 
     /**

@@ -1,6 +1,6 @@
 $settings = [
     // session repository
-    'repository' => '../storage/sessions',
+    'repository' => 'storage/sessions',
     // through a gap to run the garbage collector
     'runRate' => 10,
     // short session lifetime in seconds
@@ -8,5 +8,5 @@ $settings = [
     // long session lifetime in seconds
     'long' => 120
 ];
-$adapter = new \Jazz\Application\SessionHandle\Adapters\FileAdapter(__DIR__ . '/../storage/sessions', \FilesystemIterator::SKIP_DOTS);
-$session = new \Jazz\Application\SessionHandle\Session($adapter, $settings);
+$adapter = new \SessionMuscle\Adapters\FileAdapter($settings['repository']);
+$session = new \SessionMuscle\Session($adapter, $settings);

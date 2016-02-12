@@ -1,14 +1,14 @@
 <?php
 
-namespace Jazz\Application\SessionHandle;
+namespace SessionMuscle;
 
 use \InvalidArgumentException;
 use \RuntimeException;
-use Jazz\Application\SessionHandle\Adapters\ISessionAdapter;
+use SessionMuscle\Adapters\ISessionAdapter;
 
 /**
  * Class Session.
- * @package Jazz\Application\SessionHandle
+ * @package SessionMuscle
  */
 class Session extends GarbageCollector
 {
@@ -28,12 +28,27 @@ class Session extends GarbageCollector
     protected $sessID = '';
 
     /**
-     * Unique ID of current session
-     * with session type.
+     * Store type of current session.
      *
      * @var string
      */
-    protected $sessIDWithType = '';
+    protected $currentSessType = '';
+
+    /**
+     * Session type is array, which coordinates
+     * the work of garbage collector and contains
+     * two values: 'short' - short-term session
+     * life, 'long' - long-term session life.
+     * Session lifecycle determined by the
+     * developer, using cookies parameters
+     * and session settings.
+     *
+     * @var array
+     */
+    protected $sessTypes = [
+        'short',
+        'long'
+    ];
 
     /**
      * Temporary storage of the
@@ -60,28 +75,11 @@ class Session extends GarbageCollector
     protected $repository;
 
     /**
-     * Session type is array, which contains
-     * two values: 'short' - short-term session
-     * life, 'long' - long-term session life.
-     * Session lifecycle determined by the
-     * developer, using cookies parameters.
+     * Session settings.
      *
      * @var array
      */
-    protected $sessTypes = [
-        'short',
-        'long'
-    ];
-
-    /**
-     * Store session lifetime flag.
-     * By default session lifetime
-     * is short. Change this parameter
-     * with setLifetime method.
-     *
-     * @var string
-     */
-    protected $sessLifetime = 'short';
+    protected $settings;
 
     /**
      * Session constructor.
@@ -91,7 +89,7 @@ class Session extends GarbageCollector
      */
     public function __construct(ISessionAdapter $adapter, $settings = [])
     {
-        // check if valid type of given setting
+        // check if valid type of given settings
         if (! is_array($settings)) {
             throw new InvalidArgumentException('Session settings must be an array.');
         }
@@ -102,7 +100,12 @@ class Session extends GarbageCollector
         // store given settings (if exist)
         $this->settings = $settings;
 
-        // store given repository
+        // check if exists repository value
+        // in session settings
+        if (! isset($this->settings['repository'])) {
+            throw new InvalidArgumentException('Invalid session settings. Session repository does not exist.');
+        }
+        // set session repository
         $this->repository = $this->settings['repository'];
 
         // check whether we can read/write from/to given session repository
@@ -116,13 +119,13 @@ class Session extends GarbageCollector
         }
 
         // check valid garbage collector settings
+        // from cookie settings
         if (
-            isset($this->settings['runRate'],
+            ! isset($this->settings['runRate'],
             $this->settings['short'],
             $this->settings['long'])
         ) {
-            // run garbage collector
-            $this->runGarbageCollector();
+            throw new InvalidArgumentException('Invalid garbage collector settings.');
         }
 
         /**
@@ -133,47 +136,16 @@ class Session extends GarbageCollector
             isset($_COOKIE[$this->cookieName])
             && $this->adapter->isExist($this->repository, $_COOKIE[$this->cookieName])
         ) {
-            // On success store session id
-            $this->sessIDWithType = $_COOKIE[$this->cookieName];
+            // On success, split cookie value
+            // on session ID and session type
+            $sessCookieParts = $this->splitSessCookie($_COOKIE[$this->cookieName], $this->sessTypes);
+            // session ID without type
+            $this->sessID = $sessCookieParts['id'];
+            // session type without ID
+            $this->currentSessType = $sessCookieParts['type'];
             // read and unserialize session data from session repository
-            $this->sessStorage = $this->adapter->read($this->repository, $this->sessIDWithType);
-        } else {
-            /**
-             * If there is no ID in cookies or session repository item
-             * does not exist, create new session ID.
-            */
-            $this->sessID = $this->generateSessID();
+            $this->sessStorage = $this->adapter->read($this->repository, $_COOKIE[$this->cookieName]);
         }
-    }
-
-    /**
-     * Set session lifetime flag.
-     * 'short' equals short-term session
-     * life, 'long' equals long-term session life.
-     * Session lifecycle determined by the
-     * developer, using cookies parameters.
-     *
-     * @param string $lifetime      Сorrect session
-     *                              lifetime flag.
-     * @return false                On failure.
-     */
-    public function setLifetime($lifetime)
-    {
-        if (! is_string($lifetime)) {
-            throw new InvalidArgumentException('Session lifetime parameter must be a string.');
-        }
-
-        return (in_array($lifetime, $this->sessTypes)) ? $this->sessLifetime = $lifetime : false;
-    }
-
-    /**
-     * Return session lifetime flag.
-     *
-     * @return string   Session lifetime flag.
-     */
-    public function getLifetime()
-    {
-        return $this->sessLifetime;
     }
 
     /**
@@ -209,27 +181,6 @@ class Session extends GarbageCollector
     }
 
     /**
-     * Update session data for a given key.
-     *
-     * @param string|integer $key   Data key.
-     * @param mixed $value          New session data.
-     * @return bool                 True on success update or false if no.
-     *
-     * @throws InvalidArgumentException if given key not string or integer.
-     */
-    public function update($key, $value)
-    {
-        $this->checkKey($key);
-
-        if ($this->has($key)) {
-            $this->sessStorage[$key] = $value;
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
      * Adds new data to current session.
      *
      * @param string|integer $key   Data key.
@@ -242,12 +193,6 @@ class Session extends GarbageCollector
     public function put($key, $value)
     {
         $this->checkKey($key);
-
-        if ($this->has($key)) {
-            throw new RuntimeException(
-                "Can't add new data. Given key already exists. Use the update method for rewrite data."
-            );
-        }
 
         $this->sessStorage[$key] = $value;
         return true;
@@ -314,36 +259,6 @@ class Session extends GarbageCollector
     }
 
     /**
-     * Remove all data from the session storage
-     * and delete session item in session
-     * repository.
-     *
-     * @return bool     On success return true.
-     */
-    public function clear()
-    {
-        // clear current sesson storage if exists
-        if (! empty($this->sessStorage)) {
-            $this->sessStorage = [];
-        }
-
-        // delete session item from session repository
-        // if exists
-        if ($this->sessIDWithType !== '') {
-            $this->adapter->erase($this->repository, $this->sessIDWithType);
-            $this->sessIDWithType = '';
-        }
-
-        // remove session ID without session type
-        // if exists
-        if ($this->sessID !== '') {
-            $this->sessID = '';
-        }
-
-        return true;
-    }
-
-    /**
      * Return current session ID with
      * session type (if exists).
      *
@@ -352,7 +267,7 @@ class Session extends GarbageCollector
      */
     public function getSessID()
     {
-        return $this->sessIDWithType;
+        return $this->sessID;
     }
 
     /**
@@ -397,6 +312,80 @@ class Session extends GarbageCollector
     }
 
     /**
+     * This method return type of current session.
+     *
+     * @return string   Current session type
+     *                  if set.
+     */
+    public function getSessionType()
+    {
+        return $this->currentSessType;
+    }
+
+    /**
+     * This method set type of current session.
+     *
+     * @param string $sessionType   Current session type.
+     * @return void
+     * @throws InvalidArgumentException if method argument not a string,
+     * if trying set invalid session type, if session type allready
+     * exists.
+     */
+    public function setSessionType($sessionType)
+    {
+        if (! is_string($sessionType)) {
+            throw new InvalidArgumentException('Session type must be a string.');
+        }
+
+        if (! in_array($sessionType, $this->sessTypes)) {
+            throw new InvalidArgumentException('Session type must be "short" or "long".');
+        }
+
+        $this->currentSessType = $sessionType;
+    }
+
+    /**
+     * This method save session data.
+     * If old session exists, save it data and send cookie.
+     * If no old session, generate unique session ID,
+     * define session type, save new session data and
+     * send cookie.
+     * If no old session and sessionStorage empty
+     * do nothing.
+     *
+     * @return bool     True on success, false on failure.
+     * @throws RuntimeException if can't save session.
+     */
+    public function save()
+    {
+        // if current session not newly
+        if ($this->isSavedSession()) {
+            // get full session ID
+            $fullSessID = $this->getFullSessID();
+            // save session
+            if ($this->adapter->save($this->repository, $fullSessID, $this->sessStorage)) {
+                return setcookie($this->cookieName, $fullSessID, time() + (int) $this->settings[$this->currentSessType]);
+            } else {
+                throw new RuntimeException("Can't save session.");
+            }
+        }
+
+        // if current session is newly
+        if (! empty($this->sessStorage)) {
+            // define session type
+            $sessionType = ($this->currentSessType) ? $this->currentSessType : 'short';
+            // generate new session ID and get full session ID
+            $fullSessID = $this->generateSessID() . $sessionType;
+            // save session
+            if ($this->adapter->save($this->repository, $fullSessID, $this->sessStorage)) {
+                return setcookie($this->cookieName, $fullSessID, time() + (int) $this->settings[$sessionType]);
+            } else {
+                throw new RuntimeException("Can't save session.");
+            }
+        }
+    }
+
+    /**
      * This method regenerate current session.
      *
      * @return bool     Return true on success or false
@@ -404,72 +393,122 @@ class Session extends GarbageCollector
      */
     public function regenerate()
     {
-        // if saved session exists - regenerate
-        if ($this->sessIDWithType !== '') {
+        // if session not newly - regenerate
+        if ($this->isSavedSession()) {
             return $this->regenerateSavedSession();
         }
 
-        // if new session - just generate new session ID
-        // whitout session type
-        $this->sessID = $this->generateSessID();
-        return ($this->sessID) ? true : false;
+        // if this session newly - just generate new session ID
+        return ($this->sessID = $this->generateSessID()) ? true : false;
     }
 
     /**
-     * Save session data.
-     * If session storage not empty, session data will
-     * be saved in current session repository. Otherwise,
-     * do nothing.
+     * Remove all data from the session storage,
+     * remove session essence and session cookie,
+     * erase session ID and session type.
      *
-     * @return bool
+     * @return bool     On success return true.
      */
-    public function save()
+    public function clear()
     {
-        $successFlag = true;
+        // remove session
+        $this->adapter->erase($this->repository, $this->getFullSessID());
 
-        if ($this->sessIDWithType === '') {
-            $this->sessIDWithType = $this->sessID . $this->sessLifetime;
-        }
+        // remove session cookie
+        setcookie($this->cookieName, $this->getFullSessID(), time() - (int) $this->settings[$this->currentSessType]);
 
-        if (! empty($this->sessStorage)) {
-            $successFlag = $this->adapter->save($this->repository, $this->sessIDWithType, $this->sessStorage);
-        }
+        // clear current sesson storage
+        $this->sessStorage = [];
 
-        return ($successFlag) ? true : false;
+        // delete session ID and session type
+        $this->sessID = '';
+        $this->currentSessType = '';
+
+        return true;
     }
 
     /**
-     * This method generate new session id with old
-     * session type and save session data to new
-     * session essence.
+     * This method check if session newly or not.
+     *
+     * @return bool     True if current session
+     *                  not newly, false otherwise.
+     */
+    protected function isSavedSession()
+    {
+        return ($this->sessID !== '' && $this->currentSessType !== '') ? true : false;
+    }
+
+    /**
+     * If exists unique sessin ID and session type,
+     * this method return combined value, otherwise
+     * this method returns empty string.
+     *
+     * @return string
+     */
+    protected function getFullSessID()
+    {
+        $sessID = $this->sessID;
+        $sessType = $this->currentSessType;
+        return (! empty($sessID) && ! empty($sessType)) ? $sessID . $sessType : '';
+    }
+
+    /**
+     * This method regenerate saved session.
+     * Namely remove old session cookie and old
+     * session essence. Generate new session ID
+     * and save session data in new session
+     * essence.
      *
      * @return bool     Return true on success
      *                  or false on failure.
      */
     protected function regenerateSavedSession()
     {
-        // cached session type
-        $cachedSessType = substr($this->sessIDWithType, $this->getSessTypePos());
-        // remove old session file
-        $this->adapter->erase($this->repository, $this->sessIDWithType);
-        // generate new session ID with session type
-        $this->sessIDWithType = $this->generateSessID() . $cachedSessType;
+        // remove old session essence
+        $this->adapter->erase($this->repository, $this->getFullSessID());
+        // remove old cookie
+        setcookie($this->cookieName, $this->getFullSessID(), time() - (int) $this->settings[$this->currentSessType]);
+        // generate new session ID
+        $this->sessID = $this->generateSessID();
         // save session data to new session file
-        return $this->adapter->save($this->repository, $this->sessIDWithType, $this->sessStorage);
+        return $this->save();
     }
 
     /**
-     * Generate a new unique session ID
-     * by calculates the sha1 hash using
-     * uniqid PHP native function.
-     * @see http://php.net/manual/en/function.sha1.php
-     * @see http://php.net/manual/en/function.uniqid.php
+     * This method divide the contents
+     * of the session cookie to session ID
+     * and session type.
      *
-     * @return string   Unique session ID.
+     * @param string $cookieValue   Incoming cookie value.
+     * @param array $sessTypes      Reserved cookies types.
+     * @return array                Divided value of an array.
      */
-    protected function generateSessID()
+    protected function splitSessCookie($cookieValue, $sessTypes)
     {
-        return sha1(uniqid('', true));
+        $sessIDParts = [];
+        $typePos = $this->getSessTypePos($cookieValue, $sessTypes);
+        $sessIDParts['id'] = substr($cookieValue, 0, $typePos);
+        $sessIDParts['type'] = substr($cookieValue, $typePos);
+        return $sessIDParts;
+    }
+
+    /**
+     * Helper function which uses splitSessCookie()
+     * method. Get session type position from full
+     * session cookie value.
+     *
+     * @param string $fullSessID   Session cookie value.
+     * @param array $sessTypes     Reserved cookies types.
+     * @return integer             Position of session type if exist.
+     */
+    protected function getSessTypePos($fullSessID, $sessTypes)
+    {
+        foreach ($sessTypes as $type) {
+            $pos = strrpos($fullSessID, $type, -1);
+            if ($pos) {
+                return $pos;
+            }
+        }
     }
 
     /**
@@ -487,18 +526,16 @@ class Session extends GarbageCollector
     }
 
     /**
-     * Helper function which uses regenerateSavedSession()
-     * method. Get session type position in session ID.
+     * Generate a new unique session ID
+     * by calculates the sha1 hash using
+     * uniqid PHP native function.
+     * @see http://php.net/manual/en/function.sha1.php
+     * @see http://php.net/manual/en/function.uniqid.php
      *
-     * @return integer  Session type position.
+     * @return string   Unique session ID.
      */
-    protected function getSessTypePos()
+    protected function generateSessID()
     {
-        foreach ($this->sessTypes as $type) {
-            $pos = strrpos($this->sessIDWithType, $type, -1);
-            if ($pos !== 0) {
-                return $pos;
-            }
-        }
+        return sha1(uniqid('', true));
     }
 }

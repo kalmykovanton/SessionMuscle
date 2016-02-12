@@ -6,17 +6,10 @@ use \InvalidArgumentException;
 
 /**
  * Class GarbageCollector.
- * @package Jazz\Application\SessionHandle
+ * @package SessionMuscle
  */
-class GarbageCollector
+abstract class GarbageCollector
 {
-    /**
-     * Session and GC settings.
-     *
-     * @var array
-     */
-    protected $settings;
-
     /**
      * @var string
      */
@@ -34,9 +27,12 @@ class GarbageCollector
      */
     protected $sessLogData = [];
 
+    /**
+     *
+     */
     protected function runGarbageCollector()
     {
-        // if session log file not exist create it
+        // if session log essence does not exist create it
         $this->checkSessionLog();
         // get session log data
         $this->sessLogData = $this->adapter->read($this->repository, $this->sessLogName);
@@ -91,4 +87,3 @@ class GarbageCollector
         return (array_key_exists($key, $this->sessLogData)) ? $this->sessLogData[$key] : '';
     }
 }
-

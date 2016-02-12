@@ -4,7 +4,7 @@ namespace SessionMuscle\Adapters;
 
 /**
  * Interface ISessionAdapter.
- * @package Jazz\Application\SessionHandle\Adapters
+ * @package SessionMuscle\Adapters
  */
 interface ISessionAdapter
 {
