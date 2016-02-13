@@ -11,31 +11,37 @@ use \InvalidArgumentException;
 abstract class GarbageCollector
 {
     /**
-     * @var string
-     */
-    protected $sessLogName = '.sesslog';
-
-    /**
+     * Session service settings.
+     *
      * @var array
      */
     protected $sessLogOptions = [
+        // stores information about
+        // how many times the sessions
+        // are launched
         'starts' => 0
     ];
 
     /**
+     * Session service settings data.
+     *
      * @var array
      */
     protected $sessLogData = [];
 
     /**
+     * This method runs the garbage collector
+     * of obsolete sessions and write session logs.
      *
+     * @return bool  True on success or false
+     *               on failure.
      */
     protected function runGarbageCollector()
     {
         // if session log essence does not exist create it
         $this->checkSessionLog();
         // get session log data
-        $this->sessLogData = $this->adapter->read($this->repository, $this->sessLogName);
+        $this->sessLogData = $this->adapter->read($this->repository, $this->settings['sessLogName']);
         // increasing sessions counter
         $this->sessLogData['starts'] += 1;
         // check sessions start counter
@@ -44,20 +50,23 @@ abstract class GarbageCollector
             $this->collectGarbage();
         }
         // save session log data
-        $this->adapter->save($this->repository, $this->sessLogName, $this->sessLogData);
+        return $this->adapter->save($this->repository, $this->settings['sessLogName'], $this->sessLogData);
     }
 
     /**
-     *
+     * This method checks if exists the essence for recording
+     * sessions logs, if not then create one.
      */
     protected function checkSessionLog()
     {
-        if (! $this->adapter->isExist($this->repository, $this->sessLogName)) {
-            $this->adapter->save($this->repository, $this->sessLogName, $this->sessLogOptions);
+        if (! $this->adapter->isExist($this->repository, $this->settings['sessLogName'])) {
+            $this->adapter->save($this->repository, $this->settings['sessLogName'], $this->sessLogOptions);
         }
     }
 
     /**
+     * Checks session's counter.
+     *
      * @return bool
      */
     protected function checkSessionsCounter()
@@ -66,24 +75,11 @@ abstract class GarbageCollector
     }
 
     /**
-     *
+     *  Run garbage collector of current adapter.
      */
     protected function collectGarbage()
     {
-        $this->adapter->collectGarbage($this->getSessionSettings(), $this->getSessionTypes());
         $this->sessLogData['starts'] = 0;
-    }
-
-    /**
-     * @param $key
-     * @return mixed|string
-     */
-    protected function getDataFromLog($key)
-    {
-        if (! is_string($key)) {
-            throw new InvalidArgumentException("Session's log data key must be a string.");
-        }
-
-        return (array_key_exists($key, $this->sessLogData)) ? $this->sessLogData[$key] : '';
+        $this->adapter->collectGarbage($this->getSessionSettings(), $this->getSessionTypes());
     }
 }

@@ -86,9 +86,30 @@ interface ISessionAdapter
     public function erase($repository, $sessIDWithType);
 
     /**
-     * @param $sessionSettings
-     * @param $sessionTypes
-     * @return mixed
+     * This method must remove instances of overdue sessions. Settings,
+     * that are responsible for the operation of this method are set in
+     * the global session settings. E.g. 'runRate' setting - determines
+     * how often should run the garbage collector, 'short' - determines
+     * the lifetime, in seconds, for short session, 'long' - determines
+     * the lifetime, in seconds, for a long-term session. Thus, if
+     * 'runRate' = 10, 'short' = 60, 'long' = 120, the garbage collector
+     * will run every tenth session, lifetime of short session will be
+     * 60 seconds and for long session 120 seconds respectively.
+     * This method must take at least two array arguments, session settings
+     * and session types ('short' or 'long').
+     *
+     * @param array $sessionSettings
+     * @param array $sessionTypes
      */
     public function collectGarbage($sessionSettings, $sessionTypes);
+
+    /**
+     * This method must to configure the adapter for the recording sessions.
+     * It must take at least one argument - repository with session entities
+     * and must return session adapter instance.
+     *
+     * @param string $repository
+     * @return session adapter instance $this
+     */
+    public function configureAdapter($repository);
 }

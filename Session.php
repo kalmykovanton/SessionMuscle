@@ -17,7 +17,7 @@ class Session extends GarbageCollector
      *
      * @var string
      */
-    protected $cookieName = 'sess';
+    protected $cookieName = '';
 
     /**
      * Unique ID of current session
@@ -70,7 +70,7 @@ class Session extends GarbageCollector
      * Repository which contains
      * session data.
      *
-     * @var string|resource
+     * @var string
      */
     protected $repository;
 
@@ -87,26 +87,39 @@ class Session extends GarbageCollector
      * @param ISessionAdapter $adapter      Current adapter.
      * @param array $settings               Session and GC settigs.
      */
-    public function __construct(ISessionAdapter $adapter, $settings = [])
+    public function __construct(ISessionAdapter $adapter, $settings)
     {
         // check if valid type of given settings
         if (! is_array($settings)) {
             throw new InvalidArgumentException('Session settings must be an array.');
         }
 
-        // store given adapter
-        $this->adapter = $adapter;
-
-        // store given settings (if exist)
+        // store given settings
         $this->settings = $settings;
 
-        // check if exists repository value
-        // in session settings
-        if (! isset($this->settings['repository'])) {
-            throw new InvalidArgumentException('Invalid session settings. Session repository does not exist.');
+        // check session settings
+        if (
+        ! isset(
+            $this->settings['cookieName'],
+            $this->settings['sessLogName'],
+            $this->settings['repository'],
+            $this->settings['runRate'],
+            $this->settings['short'],
+            $this->settings['long']
+            )
+        ) {
+            throw new RuntimeException(
+                'Some settings are not found, please, refer to documentation');
         }
+
         // set session repository
         $this->repository = $this->settings['repository'];
+
+        // set session cookie name
+        $this->cookieName = $this->settings['cookieName'];
+
+        // store and configure given session adapter
+        $this->adapter = $adapter->configureAdapter($this->repository);
 
         // check whether we can read/write from/to given session repository
         if (! $this->adapter->checkAccess($this->repository)) {
@@ -116,16 +129,6 @@ class Session extends GarbageCollector
                     Сheck connection or read/write permissions.", $this->repository
                 )
             );
-        }
-
-        // check valid garbage collector settings
-        // from cookie settings
-        if (
-            ! isset($this->settings['runRate'],
-            $this->settings['short'],
-            $this->settings['long'])
-        ) {
-            throw new InvalidArgumentException('Invalid garbage collector settings.');
         }
 
         /**
@@ -188,7 +191,6 @@ class Session extends GarbageCollector
      * @return bool                 On success.
      *
      * @throws InvalidArgumentException if given key not string or integer.
-     * @throws RuntimeException if given key already exists.
      */
     public function put($key, $value)
     {
@@ -328,8 +330,7 @@ class Session extends GarbageCollector
      * @param string $sessionType   Current session type.
      * @return void
      * @throws InvalidArgumentException if method argument not a string,
-     * if trying set invalid session type, if session type allready
-     * exists.
+     * if trying set invalid session type.
      */
     public function setSessionType($sessionType)
     {
@@ -345,19 +346,20 @@ class Session extends GarbageCollector
     }
 
     /**
-     * This method save session data.
-     * If old session exists, save it data and send cookie.
-     * If no old session, generate unique session ID,
-     * define session type, save new session data and
-     * send cookie.
-     * If no old session and sessionStorage empty
-     * do nothing.
+     * This method save session data. If old session exists,
+     * save it data and send cookie. If no old session,
+     * generate unique session ID, define session type, save
+     * new session data and send cookie.
+     * If no old session and sessionStorage empty do nothing.
      *
      * @return bool     True on success, false on failure.
      * @throws RuntimeException if can't save session.
      */
     public function save()
     {
+        // run garbage collector
+        $this->runGarbageCollector();
+
         // if current session not newly
         if ($this->isSavedSession()) {
             // get full session ID
@@ -470,7 +472,7 @@ class Session extends GarbageCollector
         setcookie($this->cookieName, $this->getFullSessID(), time() - (int) $this->settings[$this->currentSessType]);
         // generate new session ID
         $this->sessID = $this->generateSessID();
-        // save session data to new session file
+        // save session data to new session entity
         return $this->save();
     }
 

@@ -12,13 +12,23 @@ use \FilesystemIterator;
 class FileAdapter implements ISessionAdapter
 {
     /**
+     * Instance if PHP's native
+     * FilesystemIterator
+     *
      * @var object
      */
     public $fileIterator;
 
-    public function __construct($path, $flag)
+    /**
+     * {@inheritdoc}
+     *
+     * @param string $path
+     * @return FileAdapter instance $this
+     */
+    public function configureAdapter($path)
     {
         $this->fileIterator = new FilesystemIterator($path, \FilesystemIterator::SKIP_DOTS);
+        return $this;
     }
 
     /**
@@ -97,8 +107,10 @@ class FileAdapter implements ISessionAdapter
     }
 
     /**
-     * @param $sessionSettings
-     * @param $sessionTypes
+     * {@inheritdoc}
+     *
+     * @param array $sessionSettings
+     * @param array $sessionTypes
      * @return void
      */
     public function collectGarbage($sessionSettings, $sessionTypes)
@@ -139,21 +151,21 @@ class FileAdapter implements ISessionAdapter
     }
 
     /**
+     * Determines the type of the current session
+     * by the flag in the name of the file.
      *
-     *
-     * @param $filename
-     * @param $sessionTypes
-     * @return string
+     * @param string $filename      Filename.
+     * @param array $sessionTypes   Session types.
+     * @return string               Session type (if exist).
      */
     protected function getSessionType($filename, $sessionTypes)
     {
         foreach ($sessionTypes as $type) {
             $pos = strrpos($filename, $type, -1);
-            if ($pos !== 0) {
+            if ($pos) {
                 return substr($filename, $pos);
             }
         }
-//        return '';
     }
 
     /**
