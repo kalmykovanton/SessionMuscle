@@ -81,7 +81,7 @@ class FileAdapter implements ISessionAdapter
      * @param array $sessionData
      * @return bool
      */
-    public function save($repository, $fullSessID, $sessionData)
+    public function save($repository, $fullSessID, array $sessionData)
     {
         $this->checkRepoNameAndSessID($repository, $fullSessID);
 
@@ -113,16 +113,8 @@ class FileAdapter implements ISessionAdapter
      * @param array $sessionTypes
      * @return void
      */
-    public function collectGarbage($sessionSettings, $sessionTypes)
+    public function collectGarbage(array $sessionSettings, array $sessionTypes)
     {
-        if (! is_array($sessionSettings)) {
-            throw new InvalidArgumentException("Session settings must be an array.");
-        }
-
-        if (! is_array($sessionTypes)) {
-            throw new InvalidArgumentException("Session types must be an array.");
-        }
-
         foreach ($this->fileIterator as $file) {
             // get current filename
             $filename = $file->getFilename();
@@ -158,7 +150,7 @@ class FileAdapter implements ISessionAdapter
      * @param array $sessionTypes   Session types.
      * @return string               Session type (if exist).
      */
-    protected function getSessionType($filename, $sessionTypes)
+    protected function getSessionType($filename, array $sessionTypes)
     {
         foreach ($sessionTypes as $type) {
             $pos = strrpos($filename, $type, -1);

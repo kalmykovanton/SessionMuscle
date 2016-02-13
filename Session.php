@@ -87,13 +87,8 @@ class Session extends GarbageCollector
      * @param ISessionAdapter $adapter      Current adapter.
      * @param array $settings               Session and GC settigs.
      */
-    public function __construct(ISessionAdapter $adapter, $settings)
+    public function __construct(ISessionAdapter $adapter, array $settings)
     {
-        // check if valid type of given settings
-        if (! is_array($settings)) {
-            throw new InvalidArgumentException('Session settings must be an array.');
-        }
-
         // store given settings
         $this->settings = $settings;
 
@@ -485,7 +480,7 @@ class Session extends GarbageCollector
      * @param array $sessTypes      Reserved cookies types.
      * @return array                Divided value of an array.
      */
-    protected function splitSessCookie($cookieValue, $sessTypes)
+    protected function splitSessCookie($cookieValue, array $sessTypes)
     {
         $sessIDParts = [];
         $typePos = $this->getSessTypePos($cookieValue, $sessTypes);
@@ -503,7 +498,7 @@ class Session extends GarbageCollector
      * @param array $sessTypes     Reserved cookies types.
      * @return integer             Position of session type if exist.
      */
-    protected function getSessTypePos($fullSessID, $sessTypes)
+    protected function getSessTypePos($fullSessID, array $sessTypes)
     {
         foreach ($sessTypes as $type) {
             $pos = strrpos($fullSessID, $type, -1);

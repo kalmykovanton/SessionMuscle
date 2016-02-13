@@ -67,7 +67,7 @@ interface ISessionAdapter
      * @param array $sessionData            Current session data.
      * @return bool                         True on success, false on failure.
      */
-    public function save($repository, $sessIDWithType, $sessionData);
+    public function save($repository, $sessIDWithType, array $sessionData);
 
     /**
      * This method must remove the entity in which the session
@@ -101,7 +101,7 @@ interface ISessionAdapter
      * @param array $sessionSettings    Session settings.
      * @param array $sessionTypes       Session types.
      */
-    public function collectGarbage($sessionSettings, $sessionTypes);
+    public function collectGarbage(array $sessionSettings, array $sessionTypes);
 
     /**
      * This method must to configure the adapter for the recording sessions.
