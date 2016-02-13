@@ -98,8 +98,8 @@ interface ISessionAdapter
      * This method must take at least two array arguments, session settings
      * and session types ('short' or 'long').
      *
-     * @param array $sessionSettings
-     * @param array $sessionTypes
+     * @param array $sessionSettings    Session settings.
+     * @param array $sessionTypes       Session types.
      */
     public function collectGarbage($sessionSettings, $sessionTypes);
 
@@ -108,8 +108,8 @@ interface ISessionAdapter
      * It must take at least one argument - repository with session entities
      * and must return session adapter instance.
      *
-     * @param string $repository
-     * @return session adapter instance $this
+     * @param string $repository    Session repository.
+     * @return object $this         Session adapter instance.
      */
     public function configureAdapter($repository);
 }
