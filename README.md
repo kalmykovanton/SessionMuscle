@@ -72,43 +72,43 @@ Remove a piece of data from the session by given key:
 ```php
 $session->delete($key, $default = ''); // true on successful removal or false if no
 ```
-To get current session ID with session type (if exists) use:
+To get current session ID with session type (if exists), use:
 ```php
 $session->getSessID(); // current session ID with session type
 ```
-To get current repository use:
+To get current repository, use:
 ```php
 $session->getRepository();
 ```
-To get current session cookie name use:
+To get current session cookie name, use:
 ```php
 $session->getCookieName();
 ```
-To get used session types use:
+To get used session types, use:
 ```php
 $session->getSessionTypes(); // return array of session types
 ```
-To get current session type use:
+To get current session type, use:
 ```php
 $session->getSessionType(); // return current session type
 ```
-To set type of current session use:
+To set type of current session, use:
 ```php
 $session->setSessionType($sessionType);
 ```
-To get current session settings use:
+To get current session settings, use:
 ```php
 $session->getSessionSettings(); // return current session settings array
 ```
-To save current session use:
+To save current session, use:
 ```php
 $session->save();
 ```
-To regenerate current session use:
+To regenerate current session, use:
 ```php
 $session->regenerate();
 ```
-To completely remove current session use:
+To completely remove current session, use:
 ```php
 $session->clear();
 ```
