@@ -89,23 +89,23 @@ class Session extends GarbageCollector
      */
     public function __construct(ISessionAdapter $adapter, array $settings)
     {
-        // store given settings
-        $this->settings = $settings;
-
         // check session settings
         if (
         ! isset(
-            $this->settings['cookieName'],
-            $this->settings['sessLogName'],
-            $this->settings['repository'],
-            $this->settings['runRate'],
-            $this->settings['short'],
-            $this->settings['long']
+            $settings['cookieName'],
+            $settings['sessLogName'],
+            $settings['repository'],
+            $settings['runRate'],
+            $settings['short'],
+            $settings['long']
             )
         ) {
             throw new RuntimeException(
-                'Some settings are not found, please, refer to documentation');
+                'Some settings are not found, please, refer to documentation.');
         }
+
+        // store given settings
+        $this->settings = $settings;
 
         // set session repository
         $this->repository = $this->settings['repository'];
