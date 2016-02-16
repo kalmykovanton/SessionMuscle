@@ -1,0 +1,22 @@
+{
+  "name": "antonkalmykov/session-muscle",
+  "type": "library",
+  "description": "Session provider component for ITCourses Jazz Framework",
+  "keywords": [],
+  "homepage": "https://github.com/kalmykovanton/SessionMuscle.git",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Anton Kalmykov",
+      "email": "a.kalmykov@outlook.com"
+    }
+  ],
+  "require": {
+    "php": ">=5.5.9"
+  },
+  "autoload": {
+    "psr-4": {
+      "SessionMuscle\\": ""
+    }
+  }
+}
