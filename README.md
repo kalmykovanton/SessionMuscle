@@ -1,5 +1,5 @@
 # SessionMuscle
-Session provider component for ItCourses Jazz Framework
+Session provider component for ITCourses Jazz Framework
 ## How to use:
 Every time when there is a request to the server, SessionMuscle will start session automatically. To modify or save current 
 session data use SessionMuscle API methods. Under session type understood long-term session or short-term session. By default,
